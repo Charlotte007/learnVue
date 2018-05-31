@@ -78,6 +78,7 @@ class Watcher () {
     }
 }
 ```
+Dep.target = new Watcher(); // 全局Dep.target添加Watcher实例 
 
 ## 开始依赖收集
 
@@ -98,7 +99,7 @@ function defineReactive (obj, key, val, cb) {
         enumerable: true,
         configurable: true,
         get: ()=>{
-            if (Dep.target) {
+            if (Dep.target) {  // 只有添加了Watcher实例的，才会加入依赖数组
                 /*Watcher对象存在全局的Dep.target中*/
                 dep.addSub(Dep.target);
             }
