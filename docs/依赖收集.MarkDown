@@ -134,7 +134,7 @@ function defineReactive (obj, key, val, cb) {
         }
     })
 }
-
+// 注意看下 释放内存的位置
 Dep.target = null;
 ```
 
