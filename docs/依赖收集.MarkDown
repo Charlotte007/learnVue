@@ -75,7 +75,7 @@ class Watcher () {
         this.vm = vm;
 
         /*在这里将观察者本身赋值给全局的target，只有被target标记过的才会进行依赖收集*/
-        // Dep.target 重新赋值为什么可以标记this ?  只服务一个Watcher对象
+        // Dep.target 重新赋值为什么可以标记this ?  一个流程 只服务一个Watcher对象
         Dep.target = this;
         /*Github:https://github.com/answershuto*/
         /*触发渲染操作进行依赖收集*/
@@ -95,8 +95,9 @@ Dep.target = new Watcher(); // 全局Dep.target添加Watcher实例，观察者�
 class Vue {
     constructor(options) {
         this._data = options.data;
-        // 
+        // 调用
         observer(this._data, options.render);
+        // watcher 实例 同时：添加标记 Dep.target = this;  this就是 watcher
         let watcher = new Watcher(this, );
     }
 }
