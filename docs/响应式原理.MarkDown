@@ -1,6 +1,6 @@
 ## 关于Vue.js
 
-Vue.js是一款MVVM框架，上手快速简单易用，通过响应式在修改数据的时候更新视图。Vue.js的响应式原理依赖于[Object.defineProperty](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty)，尤大大在[Vue.js文档](https://cn.vuejs.org/v2/guide/reactivity.html#如何追踪变化)中就已经提到过，这也是Vue.js不支持IE8 以及更低版本浏览器的原因。Vue通过设定对象属性的 setter/getter 方法来监听数据的变化，通过getter进行依赖收集，而每个setter方法就是一个观察者，在数据变更的时候通知订阅者更新视图。
+Vue.js是一款MVVM框架，上手快速简单易用，通过响应式在修改数据的时候更新视图。Vue.js的响应式原理依赖于[Object.defineProperty](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty)，尤大大在[Vue.js文档](https://cn.vuejs.org/v2/guide/reactivity.html#如何追踪变化)中就已经提到过，这也是Vue.js不支持IE8 以及更低版本浏览器的原因。Vue通过设定对象属性的 setter/getter 方法来监听数据的变化，通过`getter进行依赖收集`，而每个`setter方法就是一个观察者`，在数据变更的时候通知订阅者更新视图。
 
 
 ## 将数据data变成可观察（observable）的
@@ -9,11 +9,12 @@ Vue.js是一款MVVM框架，上手快速简单易用，通过响应式在修改�
 
 ```javascript
 /*
-* @param {object} value 数据对象
+* @param {object} dataobj 数据对象
 * @param {function} cb setter回调 
 */
-function observe(value, cb) {
-    Object.keys(value).forEach((key) => defineReactive(value, key, value[key] , cb))
+function observe(dataobj, cb) {
+    
+    Object.keys(dataobj).forEach((key) => defineReactive(dataobj, key, dataobj[key] , cb))
 }
 /*
 * @param {object} obj 数据对象
@@ -23,20 +24,28 @@ function observe(value, cb) {
 */
 function defineReactive (obj, key, val, cb) {
     Object.defineProperty(obj, key, {
-        enumerable: true,
-        configurable: true,
+        enumerable: true,// 可枚举
+        configurable: true,// 可配置
         get: ()=>{
             /*....依赖收集等....*/
             /*Github:https://github.com/answershuto*/
         },
         set:newVal=> {
-            cb();/*订阅者收到消息的回调*/
+            cb();/*观察者，数据更新时订阅者收到消息的回调*/
         }
     })
 }
 // 构造函数中，观察者模式循环调用对应回调render
+/*
+* class Vue
+* @param {object} options 参数对象
+* @param {object} options.data 数据对象
+* @param {function} options.render 数据更新回调
+*/
 class Vue {
     constructor(options) {
+        // 添加为实例属性, @return data  好理解
+        // 引用类型赋值，为什么不会同时响应？ 还需要代理
         this._data = options.data;
         observe(this._data, options.render)
     }
@@ -66,6 +75,7 @@ let app = new Vue({
 _proxy(options.data);/*构造函数中*/
 
 /*代理*/
+// option.data getter/setter =>  this._data 改变  => _data getter/setter
 function _proxy (data) {
     const that = this;
     Object.keys(data).forEach(key => {
