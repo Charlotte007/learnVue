@@ -19,9 +19,11 @@ new Vue({
 
 按照之前[《响应式原理》](https://github.com/answershuto/learnVue/blob/master/docs/%E5%93%8D%E5%BA%94%E5%BC%8F%E5%8E%9F%E7%90%86.MarkDown)中的方法进行绑定则会出现一个问题——text3在实际模板中并没有被用到，然而当text3的数据被修改的时候（this.text3 = 'test'）的时候，同样会触发text3的setter导致重新执行渲染，这显然不正确。
 
+使用依赖收集，可以使渲染所依赖的data中的数据收集到一起（data属性分为两种），只有当和渲染相关数据发生改变时准确的更新视图
+
 ## 先说说Dep
 
-当对data上的对象进行修改值的时候会触发它的setter，那么取值的时候自然就会触发getter事件，所以我们只要在最开始进行一次render，那么所有被渲染所依赖的data中的数据就会被getter收集到Dep的subs中去。在对data中的数据进行修改的时候setter只会触发Dep的subs的函数。
+当对data上的对象进行修改值的时候会触发它的setter，那么取值的时候自然就会触发getter事件，所以我们只要在`最开始进行一次render`，那么`所有被渲染所依赖的data中的数据就会被getter收集到Dep的subs中去`。在对data中的数据进行修改的时候setter只会触发Dep的subs的函数。
 
 定义一个依赖收集类Dep。
 
@@ -75,7 +77,7 @@ class Watcher () {
         this.vm = vm;
 
         /*在这里将观察者本身赋值给全局的target，只有被target标记过的才会进行依赖收集*/
-        // Dep.target 重新赋值为什么可以标记this ?  一个流程 只服务一个Watcher对象
+        // Dep.target 重新赋值为什么可以标记this ?  一个流程 只服务一个Watcher对象，this指向 Watcher实例
         Dep.target = this;
         /*Github:https://github.com/answershuto*/
         /*触发渲染操作进行依赖收集*/
@@ -92,6 +94,8 @@ Dep.target = new Watcher(); // 全局Dep.target添加Watcher实例，观察者�
 ## 开始依赖收集
 
 ```javascript
+// 整体流程： vm实例创建 -> 添加getter(依赖收集)/setter(触发) -> 先render触发一次；Dep.target 指向 新的Watcher
+// 问题来了： 是如何区分data中哪些属性和渲染相关，哪些与渲染无关的呢？
 class Vue {
     constructor(options) {
         this._data = options.data;
@@ -103,6 +107,7 @@ class Vue {
 }
 
 /*
+* 通过data数据对象getter/setter，添加依赖收集，和视图更新
 * @param {object} value 数据对象
 * @param {function} cb setter回调 
 */
@@ -110,11 +115,13 @@ function observe(value, cb) {
     Object.keys(value).forEach((key) => defineReactive(value, key, value[key] , cb))
 }
 /*
+* getter依赖收集；setter通知订阅者更新视图
 * @param {object} obj 数据对象
 * @param {any} key 数据key
 * @param {any} val 数据value
 * @param {function} cb setter回调 
 */
+// 问题： 哪些数据是和渲染相关的Watcher实例？
 function defineReactive (obj, key, val, cb) {
     /*在闭包内存储一个Dep对象,依赖收集*/
     const dep = new Dep();
@@ -123,7 +130,7 @@ function defineReactive (obj, key, val, cb) {
         enumerable: true,
         configurable: true,
         get: ()=>{
-            if (Dep.target) {  
+            if (Dep.target) { // 难以理解：Dep.target = new Watcher() =>  Dep.target = this;  this.cb.call(this.vm);(第一次render触发和渲染相关的依赖收集，Dep.target一直指向全局的watcher实例肯定是不对的；Dep.target = this; 指向的是 let watcher = new Watcher(this, );vm实例中创建的watcher对象；)
                 // 只有添加了Watcher实例的，才会加入依赖数组
                 /*Watcher对象存在全局的Dep.target中*/
                 dep.addSub(Dep.target);
@@ -137,6 +144,7 @@ function defineReactive (obj, key, val, cb) {
 }
 // 注意看下 释放内存的位置
 Dep.target = null;
+
 ```
 
 将观察者Watcher实例赋值给全局的Dep.target，然后`触发render操作只有被Dep.target标记过的才会进行依赖收集`。有Dep.target的对象会将Watcher的实例push到subs中，在对象被修改出发setter操作的时候dep会调用subs中的Watcher实例的update方法进行渲染。
